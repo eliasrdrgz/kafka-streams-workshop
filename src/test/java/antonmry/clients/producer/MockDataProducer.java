@@ -1,9 +1,11 @@
 package antonmry.clients.producer;
 
-import antonmry.model.*;
-import antonmry.util.datagen.DataGenerator;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -11,9 +13,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import antonmry.model.Purchase;
+import antonmry.util.datagen.DataGenerator;
 
 public class MockDataProducer {
 

@@ -1,31 +1,31 @@
 package antonmry.exercise_1;
 
-import antonmry.clients.producer.MockDataProducer;
-import antonmry.model.CorrelatedPurchase;
-import antonmry.model.Purchase;
-import antonmry.model.PurchasePattern;
-import antonmry.model.RewardAccumulator;
-import antonmry.util.datagen.DataGenerator;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.streams.KeyValue;
-import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.TopologyTestDriver;
-import org.apache.kafka.streams.state.KeyValueIterator;
-import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.test.ConsumerRecordFactory;
-import org.apache.kafka.test.StreamsTestUtils;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.not;
 
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.assertThat;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.TestInputTopic;
+import org.apache.kafka.streams.TestOutputTopic;
+import org.apache.kafka.streams.TopologyTestDriver;
+import org.apache.kafka.test.StreamsTestUtils;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import antonmry.clients.producer.MockDataProducer;
+import antonmry.model.Purchase;
+import antonmry.model.PurchasePattern;
+import antonmry.util.datagen.DataGenerator;
 
 public class KafkaStreamsIntegrationTest1 {
 
@@ -36,15 +36,13 @@ public class KafkaStreamsIntegrationTest1 {
     private static final String TRANSACTIONS_TOPIC = "transactions";
     private static final String PURCHASES_TOPIC = "purchases";
     private static final String PATTERNS_TOPIC = "patterns";
-    private static final String PURCHASES_TABLE_TOPIC = "customer_detection";
-    private static final String REWARDS_TOPIC = "rewards";
-    private static final String SHOES_TOPIC = "shoes";
-    private static final String FRAGRANCES_TOPIC = "fragrances";
-    private static final String SHOES_AND_FRAGANCES_TOPIC = "shoesAndFragrancesAlerts";
 
     private static TopologyTestDriver testDriver;
+    private static TestInputTopic<String, String> transactionsInputTopic;
+    private static TestOutputTopic<String, String> purchasesOutputTopic;
+    private static TestOutputTopic<String, String> patternsOutputTopic;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUpAll() {
 
         Properties properties = StreamsTestUtils.getStreamsConfig("tested",
@@ -59,6 +57,9 @@ public class KafkaStreamsIntegrationTest1 {
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "tester");
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:1234");
         testDriver = new TopologyTestDriver(kafkaStreamsApp.getTopology(), props);
+        transactionsInputTopic = testDriver.createInputTopic(TRANSACTIONS_TOPIC, new StringSerializer(), new StringSerializer());
+        purchasesOutputTopic = testDriver.createOutputTopic(PURCHASES_TOPIC, new StringDeserializer(), new StringDeserializer());
+        patternsOutputTopic = testDriver.createOutputTopic(PATTERNS_TOPIC, new StringDeserializer(), new StringDeserializer());
     }
 
     private void producePurchaseData() {
@@ -66,13 +67,12 @@ public class KafkaStreamsIntegrationTest1 {
         List<Purchase> purchases = DataGenerator.generatePurchases(100, 10);
         List<String> jsonValues = MockDataProducer.convertToJson(purchases);
 
-        ConsumerRecordFactory<String, String> factory = new ConsumerRecordFactory<>(
-                TRANSACTIONS_TOPIC,
-                new StringSerializer(),
-                new StringSerializer());
-
-        jsonValues.forEach(v -> testDriver.
-                pipeInput(factory.create(TRANSACTIONS_TOPIC, null, v, 9999L)));
+        jsonValues.forEach(v -> 
+        {
+        	System.out.println(v);
+        	transactionsInputTopic.pipeInput(v);
+        });
+        	
     }
 
     /**
@@ -86,11 +86,7 @@ public class KafkaStreamsIntegrationTest1 {
 
         List<Purchase> actualValues = MockDataProducer.convertFromJson(
                 IntStream.range(0, 100)
-                        .mapToObj(v -> testDriver.readOutput(
-                                PURCHASES_TOPIC,
-                                new StringDeserializer(),
-                                new StringDeserializer()
-                        ).value()).collect(Collectors.toList()),
+                    .mapToObj(v -> purchasesOutputTopic.readValue()).collect(Collectors.toList()),
                 Purchase.class);
 
         System.out.println("Received: " + actualValues);
@@ -112,11 +108,7 @@ public class KafkaStreamsIntegrationTest1 {
 
         List<PurchasePattern> actualValues = MockDataProducer.convertFromJson(
                 IntStream.range(0, 100)
-                        .mapToObj(v -> testDriver.readOutput(
-                                PATTERNS_TOPIC,
-                                new StringDeserializer(),
-                                new StringDeserializer()
-                        ).value()).collect(Collectors.toList()),
+                    .mapToObj(v -> patternsOutputTopic.readValue()).collect(Collectors.toList()),
                 PurchasePattern.class);
 
         System.out.println(PATTERNS_TOPIC + " received: " + actualValues);

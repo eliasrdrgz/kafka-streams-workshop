@@ -1,16 +1,20 @@
 package antonmry.util.datagen;
 
-import antonmry.model.Purchase;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+
 import com.github.javafaker.Faker;
 import com.github.javafaker.Finance;
 import com.github.javafaker.Name;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
+import antonmry.model.Purchase;
 
 
 public class DataGenerator {

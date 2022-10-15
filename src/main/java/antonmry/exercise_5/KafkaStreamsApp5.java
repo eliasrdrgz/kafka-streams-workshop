@@ -1,5 +1,32 @@
 package antonmry.exercise_5;
 
+import java.time.Duration;
+import java.util.Properties;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.Topology;
+import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.JoinWindows;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.KeyValueMapper;
+import org.apache.kafka.streams.kstream.Predicate;
+import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.StreamJoined;
+import org.apache.kafka.streams.kstream.ValueJoiner;
+import org.apache.kafka.streams.processor.WallclockTimestampExtractor;
+import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
+import org.apache.kafka.streams.state.KeyValueIterator;
+import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.StoreBuilder;
+import org.apache.kafka.streams.state.Stores;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import antonmry.exercise_5.joiner.PurchaseJoiner;
 import antonmry.exercise_5.partitioner.RewardsStreamPartitioner;
 import antonmry.exercise_5.transformer.PurchaseRewardTransformer;
@@ -8,18 +35,6 @@ import antonmry.model.Purchase;
 import antonmry.model.PurchasePattern;
 import antonmry.model.RewardAccumulator;
 import antonmry.util.serde.StreamsSerdes;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.*;
-import org.apache.kafka.streams.kstream.*;
-import org.apache.kafka.streams.processor.WallclockTimestampExtractor;
-import org.apache.kafka.streams.state.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.time.Duration;
-import java.util.Properties;
 
 public class KafkaStreamsApp5 {
 
@@ -107,7 +122,7 @@ public class KafkaStreamsApp5 {
         KStream<String, CorrelatedPurchase> joinedKStream = shoeStream.join(fragranceStream,
                 purchaseJoiner,
                 twentyMinuteWindow,
-                Joined.with(stringSerde,
+                StreamJoined.with(stringSerde,
                         purchaseSerde,
                         purchaseSerde));
 

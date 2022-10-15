@@ -1,5 +1,36 @@
 package antonmry.solution;
 
+import java.time.Duration;
+import java.util.Properties;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.StoreQueryParameters;
+import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.Topology;
+import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.JoinWindows;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.KeyValueMapper;
+import org.apache.kafka.streams.kstream.Materialized;
+import org.apache.kafka.streams.kstream.Predicate;
+import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.StreamJoined;
+import org.apache.kafka.streams.kstream.ValueJoiner;
+import org.apache.kafka.streams.processor.WallclockTimestampExtractor;
+import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
+import org.apache.kafka.streams.state.KeyValueIterator;
+import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.QueryableStoreTypes;
+import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
+import org.apache.kafka.streams.state.StoreBuilder;
+import org.apache.kafka.streams.state.Stores;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import antonmry.model.CorrelatedPurchase;
 import antonmry.model.Purchase;
 import antonmry.model.PurchasePattern;
@@ -8,18 +39,6 @@ import antonmry.solution.joiner.PurchaseJoiner;
 import antonmry.solution.partitioner.RewardsStreamPartitioner;
 import antonmry.solution.transformer.PurchaseRewardTransformer;
 import antonmry.util.serde.StreamsSerdes;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.*;
-import org.apache.kafka.streams.kstream.*;
-import org.apache.kafka.streams.processor.WallclockTimestampExtractor;
-import org.apache.kafka.streams.state.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.time.Duration;
-import java.util.Properties;
 
 public class KafkaStreamsApp {
 
@@ -102,14 +121,16 @@ public class KafkaStreamsApp {
 
         ValueJoiner<Purchase, Purchase, CorrelatedPurchase> purchaseJoiner = new PurchaseJoiner();
 
-        JoinWindows twentyMinuteWindow = JoinWindows.of(Duration.ofMinutes(20));
+        JoinWindows twentyMinuteWindow = JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ofMinutes(20));
 
-        KStream<String, CorrelatedPurchase> joinedKStream = shoeStream.join(fragranceStream,
-                purchaseJoiner,
-                twentyMinuteWindow,
-                Joined.with(stringSerde,
-                        purchaseSerde,
-                        purchaseSerde));
+        KStream<String, CorrelatedPurchase> joinedKStream = shoeStream.join(
+        	fragranceStream,
+            purchaseJoiner,
+            twentyMinuteWindow,
+            StreamJoined.with(
+        		stringSerde,
+                purchaseSerde,
+                purchaseSerde));
 
         joinedKStream.to("shoesAndFragrancesAlerts", Produced.with(stringSerde, correlatedPurchaseSerde));
 
@@ -132,7 +153,8 @@ public class KafkaStreamsApp {
     public KeyValueIterator<String, Purchase> getCustomersTableRecords() {
 
         ReadOnlyKeyValueStore<String, Purchase> keyValueStore =
-                this.kafkaStreams.store("customers", QueryableStoreTypes.keyValueStore());
+                this.kafkaStreams.store(
+            		StoreQueryParameters.fromNameAndType("customers", QueryableStoreTypes.keyValueStore()));
 
         return keyValueStore.all();
     }
